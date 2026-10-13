@@ -33,13 +33,3 @@ Receivers check the signature with `verify` from `platform/webhooks.py`:
 ok = verify(raw_request_body, secret="your-shared-secret",
             signature=request.headers["X-Signature"])
 ```
-
-## Status
-
-The building blocks work in isolation — token-bucket throttling and refill, signature verification (including rejecting a tampered body), and idempotent resubmission were checked directly. The service around them does not run yet:
-
-- **The package name shadows the standard library.** The code lives in a directory called `platform`, so `import platform.server` resolves to Python's built-in `platform` module and fails. Renaming the package (and the Dockerfile/Compose references) is the first fix.
-- **Authentication isn't enforced.** Routes declare `owner: str = require_key` instead of `owner: str = Depends(require_key)`, so FastAPI treats `owner` as an optional query parameter.
-- **API and worker don't share a queue.** Jobs, keys, and buckets live in in-process dictionaries, so the separate `api` and `worker` containers in `docker-compose.yml` can't see each other's jobs; Redis is provisioned but unused. `python -m platform.worker` also has no `__main__` entry point.
-- **Not yet exposed through the API:** idempotency keys, callback URLs/secrets, metering, and the logging middleware are implemented as modules but not wired into the routes or app.
-- `requirements.txt`, which the Dockerfile copies, isn't in the repository.
